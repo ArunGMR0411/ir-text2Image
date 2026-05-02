@@ -1,0 +1,144 @@
+\section{Ranking and Retrieval Methodology}
+\label{sec:ranking}
+
+The retrieval system implements three approaches that are evaluated both individually and as components of a unified multimodal ranking pipeline. As summarised in Table~\ref{tab:approach-overview}, the approaches differ in signal type, index structure, and ranking strategy, while sharing common post-processing operations before final top-10 output.
+
+Figure~\ref{fig:retrieval-flow} provides a compact view of how the three approaches feed into the shared ranking and output stage.
+
+\begin{figure}[t]
+  \centering
+  \resizebox{0.94\linewidth}{!}{%
+  \begin{tikzpicture}[
+    x=1cm, y=1cm,
+    >=Latex,
+    stage/.style={
+      draw=blue!50!black,
+      rounded corners=2pt,
+      thick,
+      fill=blue!5,
+      align=center,
+      text width=2.0cm,
+      minimum height=0.95cm,
+      font=\scriptsize
+    },
+    accent/.style={
+      stage,
+      fill=green!6,
+      draw=green!45!black
+    },
+    final/.style={
+      stage,
+      fill=orange!8,
+      draw=orange!70!black,
+      text width=3.6cm
+    },
+    flow/.style={->, line width=0.7pt, draw=blue!55!black}
+  ]
+    \node[stage] (query) at (5.4,2.0) {Query\\preset or custom};
+    \node[stage] (a) at (1.6,0.9) {Approach A\\BM25 sparse};
+    \node[accent] (b) at (5.4,0.9) {Approach B\\SigLIP2 visual};
+    \node[accent] (c) at (9.2,0.9) {Approach C\\late fusion};
+    \node[final] (out) at (5.4,-0.55) {Shared output\\reranking, deduplication, final top-10};
+
+    \draw[flow] (query) -- (a);
+    \draw[flow] (query) -- (b);
+    \draw[flow] (query) -- (c);
+    \draw[flow] (a) -- (out);
+    \draw[flow] (b) -- (out);
+    \draw[flow] (c) -- (out);
+  \end{tikzpicture}
+  }
+  \caption{Retrieval and ranking workflow across Approaches A, B, and C, ending in shared post-processing and final top-10 output.}
+  \label{fig:retrieval-flow}
+  \Description{Flowchart showing a query entering three retrieval branches: BM25 sparse retrieval, SigLIP2 visual retrieval, and late fusion retrieval, which then feed into shared reranking, deduplication, and final top-10 results.}
+\end{figure}
+
+\subsection{Approach A: Sparse Text Retrieval}
+\label{sec:approach-a}
+
+\begin{table}[t]
+\small
+\centering
+\caption{Overview of the three retrieval approaches.}
+\label{tab:approach-overview}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+Property & Approach A & Approach B & Approach C \\
+\midrule
+Full Name & BM25 Sparse Text Retrieval & SigLIP2 Dense Visual Retrieval & Hybrid Late Fusion with Cross-Encoder Re-ranking \\
+Type & Sparse Inverted Index & Dense Vector Retrieval & Hybrid Late Fusion \\
+Visual Signal & Florence-2 Captions & SigLIP2 Embeddings & SigLIP2 Embeddings \\
+Text Signal & Transcripts + Captions & None & Transcripts + Captions \\
+Semantic Signal & None & SigLIP2 Cross-modal & BGE-large-en-v1.5 \\
+Re-ranking & None & None & bge-reranker-v2-m3 (top-50 candidates) \\
+Index & Whoosh BM25 & FAISS IndexFlatIP & BM25 + FAISS$\times$3 \\
+Mean P@10 & 0.070 & 0.620 & 0.640 \\
+Role & Sparse Baseline & Dense Visual Baseline & Primary Novel Submission \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+Approach A is a sparse inverted-index retrieval system built on \textbf{Whoosh BM25} over two text streams: ASR transcripts and \textbf{Florence-2} visual captions. This branch explicitly fulfils the assignment requirement for an inverted index. Each keyframe is represented as a text document containing transcript evidence from the 20-second alignment window together with the corresponding visual caption. At query time, the natural-language query is tokenised and scored using Okapi BM25 \cite{robertson2009probabilistic}.
+
+To mitigate vocabulary mismatch, the query-expansion stage augments the user query with synonyms, object hints, and colour hints. These terms are combined with a disjunctive query formulation, which proved more robust than conjunction-based matching for multi-term lifelogging queries. A location-aware post-filter then reduces location-mismatched results by 50\% whenever the frame stream is incompatible with the query location prior. All resulting scores are max-normalised into the range $[0,1]$ before any downstream fusion.
+
+\subsection{Approach B: Dense Visual Retrieval}
+\label{sec:approach-b}
+
+Approach B performs dense retrieval exclusively in the visual embedding space. Every keyframe is encoded with \textbf{SigLIP2} into a 1,152-dimensional representation, and every natural-language query is projected into the same space using the paired text encoder. Retrieval is then carried out by maximum inner-product search over the full \textbf{FAISS} visual index, implemented as \textbf{IndexFlatIP} \cite{johnson2021billion}. Because vectors are normalised before retrieval, inner-product search is equivalent to cosine similarity.
+
+\textbf{SigLIP2} was selected over standard CLIP baselines because its sigmoid-loss formulation yields stronger cross-modal alignment for fine-grained object and scene retrieval \cite{zhai2023sigmoid}. This visual-only pathway is particularly important for object-centric queries, where transcript evidence is often absent or too noisy to discriminate relevant frames.
+
+\subsection{Approach C: Hybrid Late Fusion with Cross-Encoder Re-ranking}
+\label{sec:approach-c}
+
+Approach C, labelled \fusionname, is the primary contribution of the system. It combines three independently generated candidate signals: visual scores from \textbf{SigLIP2}, dense semantic text scores from \textbf{BGE-large-en-v1.5} over transcripts and captions \cite{chen2024bge}, and sparse BM25 scores from Approach A. Per-query fusion weights are listed in Table~\ref{tab:fusion-weights}.
+
+\begin{table*}[!t]
+\small
+\centering
+\caption{Per-query late fusion weights for \fusionname. $w_{\text{vis}}$ and $w_{\text{text}}$ sum to 1.0 per query.}
+\label{tab:fusion-weights}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+query\_id & query\_type & w\_vis & w\_text & rationale \\
+\midrule
+Q1 & Visual/Activity & 0.7 & 0.3 & Visual signal dominates; ground truth analysis confirmed egocentric frames are the relevant signal \\
+Q2 & Visual/Activity & 0.6 & 0.4 & Visual primary with some text signal; coffee machine is visually distinctive \\
+Q3 & Visual/Activity & 0.6 & 0.4 & Visual primary; action is visually salient but some transcript context aids retrieval \\
+Q4 & Visual/Activity & 0.7 & 0.3 & Visual signal dominates; ground truth analysis confirmed visual frames are the relevant signal \\
+Q5 & Visual/Activity & 0.7 & 0.3 & Visual signal dominates; singing is visually salient across egocentric streams \\
+Q6 & Visual/Object & 0.8 & 0.2 & Pure object query; no discriminative transcript signal expected for a small toy \\
+Q7 & Visual/Object & 0.8 & 0.2 & Fine-grained object query; visual embedding is the only viable signal \\
+Q8 & Visual/Object & 0.8 & 0.2 & Fine-grained object query; baking tool is visually distinctive with no transcript signal \\
+Q9 & Visual/Object & 0.6 & 0.4 & Mixed query; visual embedding primary but some text context (card game speech) aids retrieval \\
+Q10 & Visual/Object & 0.8 & 0.2 & State-aware visual object; transient physical state requires strong visual signal \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+The fused score for each frame is computed as
+\begin{equation}
+\begin{aligned}
+s_{\text{final}} ={}& w_{\text{vis}} \cdot V \\
+& + w_{\text{text}} \cdot \left( 0.5 \cdot s_{\text{BM25}} \right. \\
+& \left. + 0.5 \cdot \left( 0.5 \cdot s_{\text{cap}} + 0.5 \cdot s_{\text{trans}} \right) \right),
+\end{aligned}
+\end{equation}
+where $V$ denotes the visual score, $s_{\text{BM25}}$ the sparse lexical score, and $s_{\text{cap}}$ and $s_{\text{trans}}$ the dense semantic scores for captions and transcripts respectively. This late-fusion design preserves independent control over each modality and avoids early-fusion feature concatenation.
+
+After score fusion, the top-50 candidates are re-ranked with \textbf{bge-reranker-v2-m3}. The re-ranker is treated as the precision-enhancement stage of Approach C, refining the fused shortlist without changing the underlying indexes.
+
+\subsection{Post-Processing}
+\label{sec:postprocessing}
+
+Two post-processing operations are applied before final truncation to top-10. First, temporal deduplication suppresses any lower-ranked frame from the same stream that falls within a $\pm 10$ second neighbourhood of a higher-ranked result. This prevents burst clustering and increases temporal diversity in the ranked output. Second, cross-stream flagging marks frames from different streams that share the same timestamp, exposing valid multi-angle evidence without discarding alternative viewpoints.
+
+\subsection{Interactive Query Refinement}
+\label{sec:interactive}
+
+The Streamlit interface supports query selection and approach switching for all three retrieval modes. It also implements Rocchio-style relevance feedback \cite{rocchio1971relevance}: when a user marks a retrieved frame as relevant, the system blends the selected frame embedding with the current query embedding and re-queries the visual index. This mechanism provides lightweight iterative refinement without requiring index reconstruction.

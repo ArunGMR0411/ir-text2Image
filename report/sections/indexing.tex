@@ -1,0 +1,180 @@
+\section{Indexing}
+\label{sec:indexing}
+
+The indexing pipeline transforms the CASTLE 2024 corpus into a unified multimodal retrieval substrate through dataset preparation, visual feature extraction, text feature extraction, OCR hallucination mitigation, and multi-index construction. The design goal is to retain exact frame-level correspondence across modalities while controlling storage, redundancy, and noise.
+
+Figure~\ref{fig:indexing-flow} summarises the indexing workflow from raw keyframes to the final set of retrieval artifacts.
+
+\begin{figure}[t]
+  \centering
+  \resizebox{0.94\linewidth}{!}{%
+  \begin{tikzpicture}[
+    x=1cm, y=1cm,
+    >=Latex,
+    node distance=0.25cm,
+    stage/.style={
+      draw=blue!50!black,
+      rounded corners=2pt,
+      thick,
+      fill=blue!5,
+      align=center,
+      text width=1.8cm,
+      minimum height=1.05cm,
+      font=\scriptsize
+    },
+    accent/.style={
+      stage,
+      draw=orange!70!black,
+      fill=orange!8
+    },
+    outbox/.style={
+      draw=blue!50!black,
+      rounded corners=2pt,
+      thick,
+      fill=blue!3,
+      align=center,
+      text width=1.55cm,
+      minimum height=0.95cm,
+      font=\scriptsize
+    },
+    flow/.style={->, line width=0.7pt, draw=blue!55!black}
+  ]
+    \node[stage] (castle) at (0.6,1.55) {CASTLE 2024\\416,542 frames};
+    \node[stage] (prep) at (3.0,1.55) {Preprocessing\\resize + QAFF};
+    \node[accent] (caption) at (5.4,1.55) {Captioning\\Florence-2 + OCR};
+    \node[accent] (gate) at (7.8,1.55) {OCR Gate\\SigLIP2 filter};
+    \node[stage] (artifacts) at (10.2,1.55) {Artifacts\\ASR + captions};
+
+    \node[outbox] (visual) at (2.0,0.0) {Visual Index\\SigLIP2};
+    \node[outbox] (text) at (5.4,0.0) {Text Indexes\\BGE};
+    \node[outbox] (sparse) at (8.8,0.0) {Sparse Index\\Whoosh BM25};
+
+    \draw[flow] (castle) -- (prep);
+    \draw[flow] (prep) -- (caption);
+    \draw[flow] (caption) -- (gate);
+    \draw[flow] (gate) -- (artifacts);
+
+    \draw[flow] (prep.south) |- (visual.north);
+    \draw[flow] (caption.south) -- (text.north);
+    \draw[flow] (gate.south) |- (sparse.north);
+  \end{tikzpicture}
+  }
+  \caption{Indexing workflow from raw CASTLE 2024 keyframes through preprocessing, caption cleaning, and multi-index construction.}
+  \label{fig:indexing-flow}
+  \Description{Flowchart showing the indexing pipeline: CASTLE 2024 keyframes, preprocessing and frame filtering, Florence-2 caption generation, OCR gating, and the final visual, semantic, and sparse indexes.}
+\end{figure}
+
+\subsection{Dataset and Keyframe Corpus}
+\label{sec:dataset}
+
+The CASTLE 2024 dataset spans four recording days and combines ten egocentric member cameras with five fixed room cameras, yielding 416,542 keyframes sampled at 5-second intervals. The fixed streams correspond to kitchen, living1, living2, meeting, and reading. Each keyframe follows the \textbf{HH\_NNNN.webp} naming convention, where the hour token identifies the source hour and the four-digit counter identifies the frame position within that hour. Temporal alignment uses the verified offset rule
+\[
+  t_{\text{offset}} = (\text{NNNN} - 1) \times 5
+\]
+which was validated against transcript timing across multiple streams and days.
+
+The raw 4K UHD corpus was resized to 768$\times$768 using \textbf{cv2.INTER\_LANCZOS4} and stored as WebP with quality 90, reducing storage from 107.61 GB to 41.28 GB. To reduce the cost of downstream caption generation, we applied a two-stage Quality-Aware Frame Filtering (QAFF) procedure. First, CLIP ViT-B/32 query-aware relevance scores were computed for all 416,542 frames. The resulting distribution was tightly compressed, with minimum 0.1612, maximum 0.3397, mean 0.2311, and median 0.2288. Histogram inspection motivated three score tiers: HOT for scores at least 0.27, WARM for scores from 0.20 to 0.27, and COLD for scores below 0.20, producing 29,011 HOT frames, 354,512 WARM frames, and 33,019 COLD frames. A perceptual-hash decimation stage then filtered WARM and COLD frames using Hamming-distance thresholds of 8 and 12 respectively, while preserving all HOT frames. The final captioning subset contained 244,966 frames, meaning 171,576 frames were removed. Fixed cameras showed a 78.4\% drop rate compared with 1.2\% for member cameras, which is consistent with the stronger redundancy in room-mounted views, and the main corpus statistics are summarised in Table~\ref{tab:dataset-stats}.
+
+\begin{table}[t]
+\centering
+\small
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{ll}
+\toprule
+Metric & Value \\
+\midrule
+Total keyframes & 416542 \\
+Recording days & 4 \\
+Member streams (egocentric) & 10 \\
+Fixed room cameras & 5 \\
+Total streams & 60 \\
+Frame sampling interval & 5.0 seconds \\
+Frames after pHash decimation (captioning corpus) & 244966 \\
+Frames dropped by pHash & 171576 \\
+HOT frame preservation rate & 100\% \\
+Fixed camera drop rate & 78.4\% \\
+Member camera drop rate & 1.2\% \\
+Transcript JSON files & 667 \\
+Transcript-aligned frame pairs & 145140 \\
+Original dataset size & 107.61 GB \\
+Resized dataset size (768x768 WebP) & 41.28 GB \\
+\bottomrule
+\end{tabular}
+}
+\caption{CASTLE 2024 dataset and preprocessing statistics.}
+\label{tab:dataset-stats}
+\end{table}
+
+\subsection{Visual Feature Extraction}
+\label{sec:visual-features}
+
+Dense visual representations were extracted with \textbf{SigLIP2} SO400M. This model was preferred because sigmoid-loss pre-training yields strong cross-modal alignment for fine-grained object-centric retrieval \cite{zhai2023sigmoid}. The final float32 embedding matrix has shape 416,542$\times$1,152 and occupies approximately 1.79 GB on disk.
+
+\subsection{Text Feature Extraction}
+\label{sec:text-features}
+
+ASR transcripts were aligned to keyframes with a 20-second sliding window, that is, \(\pm 10\) seconds around the current chunk start time, producing 145,140 transcript-frame pairs from 667 transcript JSON files. Transcript cleaning applied lowercasing, punctuation removal, tokenisation, and stopword filtering, reducing average transcript length from 122.02 words to 69.76 words per frame.
+
+Dense semantic text features were generated with \textbf{BGE-large-en-v1.5} \cite{chen2024bge}. The transcript embedding matrix has shape 145,140$\times$1,024 and occupies approximately 0.55 GiB, while the caption embedding matrix has shape 244,966$\times$1,024 and occupies approximately 0.93 GiB. Visual captions were generated with \textbf{Florence-2} \cite{xiao2023florence2} using a two-pass design that applied both caption and OCR prompts per frame. The pipeline produced 244,966 caption records covering the decimated keyframe corpus.
+
+\subsection{OCR Hallucination Gate}
+\label{sec:ocr-gate}
+
+Inspection of the caption corpus showed that \textbf{Florence-2} frequently appended OCR-bearing strings to frames that contained no visually grounded writing. In total, 178,914 records exhibited this behaviour. To suppress this noise without a second visual inference pass, each OCR string was encoded with the \textbf{SigLIP2} text tower and compared against the corresponding 1,152-dimensional visual embedding using cosine similarity. OCR-bearing text was stripped whenever similarity fell below 0.20.
+
+This gate removed all 178,914 affected records, yielding a 100\% strip rate. Observed similarities ranged from -0.081 to 0.137, with mean 0.043, well below the threshold. The outcome is consistent with the learned sigmoid parameters of \textbf{SigLIP2}: the approximate logit scale is 4.70 and the bias is -15.93, implying a breakeven cosine of roughly 3.39, which is impossible for unit-normalised vectors. In practical terms, the gate prevents OCR hallucinations from polluting both the sparse \textbf{Whoosh} index and the dense caption embedding space, as detailed in Table~\ref{tab:ocr-gate}.
+
+\begin{table}[t]
+\centering
+\small
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{ll}
+\toprule
+Metric & Value \\
+\midrule
+Total caption records & 244966 \\
+Records with non-empty OCR text & 178914 \\
+OCR records stripped (hallucinated) & 178914 \\
+Strip rate & 100.0\% \\
+Records retained (sim >= 0.20) & 0 \\
+Cosine similarity minimum & -0.081 \\
+Cosine similarity mean & 0.043 \\
+Cosine similarity maximum & 0.137 \\
+Gate threshold & 0.20 \\
+SigLIP2 logit scale & \textasciitilde4.70 \\
+SigLIP2 logit bias & \textasciitilde-15.93 \\
+Breakeven cosine for sigmoid=0.5 & \textasciitilde3.39 (impossible for unit vectors) \\
+Captions under 5 words (post-gate artefacts) & 1639 \\
+True in-body hallucination rate & 0.0024\% (6 records) \\
+\bottomrule
+\end{tabular}
+}
+\caption{OCR hallucination gate statistics. All 178,914 ungrounded tokens were stripped at a 100\% rate.}
+\label{tab:ocr-gate}
+\end{table}
+
+\subsection{Index Architecture}
+\label{sec:index-arch}
+
+The final retrieval architecture uses three modality-specific indexes. The visual index stores 416,542 \textbf{SigLIP2} vectors in a \textbf{FAISS IndexFlatIP} structure for exact cosine retrieval \cite{johnson2021billion}. Two additional \textbf{FAISS IndexFlatIP} indexes store transcript and caption embeddings, with sizes of approximately 0.55 GiB and 0.93 GiB respectively. Sparse lexical retrieval is handled by a \textbf{Whoosh BM25} index spanning seven fields: \textbf{frame\_id}, \textbf{stream\_name}, \textbf{day}, \textbf{hour}, \textbf{timestamp\_str}, \textbf{transcript\_text}, and \textbf{caption\_text}, and the resulting multi-index design is summarised in Table~\ref{tab:index-arch}.
+
+Flat indexing was selected because the corpus fits comfortably in main memory without requiring quantisation. This preserves exact retrieval fidelity across visual and textual modalities while keeping the architecture simple, deterministic, and easy to analyse.
+
+\begin{table}[t]
+\centering
+\small
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{llllll}
+\toprule
+Index Name & Type & Dimension & Vectors & File Size & Notes \\
+\midrule
+Visual Index & \textbf{FAISS IndexFlatIP} & 1152 & 416542 & 1.79 GiB & SigLIP2 embeddings --- exact cosine search \\
+Transcript Semantic Index & \textbf{FAISS IndexFlatIP} & 1024 & 145140 & 0.55 GiB & BGE-large-en-v1.5 embeddings \\
+Caption Semantic Index & \textbf{FAISS IndexFlatIP} & 1024 & 244966 & 0.93 GiB & BGE-large-en-v1.5 embeddings \\
+Sparse Keyword Index & \textbf{Whoosh BM25} & --- & 416542 & --- & 7 retrieval fields \\
+\bottomrule
+\end{tabular}
+}
+\caption{Multi-index architecture of the MOS retrieval system.}
+\label{tab:index-arch}
+\end{table}

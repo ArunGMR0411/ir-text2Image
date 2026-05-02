@@ -1,0 +1,55 @@
+\documentclass[sigconf,nonacm]{acmart}
+
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\newcommand{\showDOI}[1]{\par\noindent\textbf{DOI:} #1}
+\newcommand{\fusionname}{\mbox{\textbf{\nolinkurl{siglip2_bge_bm25_fusion}}}}
+\newcommand{\bestscore}[1]{\textbf{\underline{#1}}}
+
+\acmConference[CSC1121]{CSC1121 Assignment 2}{2026}{Dublin City University}
+\acmBooktitle{CSC1121 Assignment 2 (CSC1121), 2026, Dublin City University}
+\settopmatter{printacmref=false}
+
+\begin{document}
+\raggedbottom
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
+
+\title{Multimodal Object Search over Egocentric Lifelogging Video: The CASTLE 2024 Dataset}
+
+\author{Arun Narayanan}
+\email{arun.narayanan2@mail.dcu.ie}
+\affiliation{
+  \institution{Dublin City University}
+  \department{School of Computing}
+  \city{Dublin}
+  \country{Ireland}
+}
+
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+\keywords{egocentric video retrieval, multimodal IR, SigLIP2, late fusion, lifelogging, CASTLE 2024, BM25, cross-encoder re-ranking}
+
+\maketitle
+\begingroup
+\renewcommand{\thefootnote}{}
+\footnotetext{GitHub Repository: \url{https://github.com/ArunGMR0411/ir-text2Image}}
+\endgroup
+
+\input{sections/introduction}
+\input{sections/indexing}
+\input{sections/ranking}
+\input{sections/evaluation}
+\input{sections/conclusions}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{report}
+
+\end{document}
