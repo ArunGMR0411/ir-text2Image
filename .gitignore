@@ -1,0 +1,58 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# ── Virtual environment ───────────────────────────────────────────────────────
+venv/
+env/
+.env/
+
+# ── Dataset (images are too large for git) ────────────────────────────────────
+dataset/
+dataset_resized/
+
+# ── Large binary artifacts ────────────────────────────────────────────────────
+embeddings/
+index/
+
+# ── Evaluation outputs (generated, not source) ───────────────────────────────
+evaluation/all_results.json
+evaluation/pooled_candidates.csv
+evaluation/q7_expanded_pool.csv
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/
+
+# ── Audit log ─────────────────────────────────────────────────────────────────
+audit_log.md
+
+# ── LaTeX build artifacts ─────────────────────────────────────────────────────
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.log
+report/*.out
+report/*.synctex.gz
+report/*.fls
+report/*.fdb_latexmk
+
+# ── OS / editor junk ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.~lock.*
+.vscode/settings.json
+.idea/
+
+# ── Scratch / temp ────────────────────────────────────────────────────────────
+scratch/
+*.tmp
+
+# ── Hidden AI tool directories ────────────────────────────────────────────────
+.agents/
+.codex/

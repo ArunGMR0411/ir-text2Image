@@ -1,0 +1,40 @@
+# ── Core ML / Deep Learning ───────────────────────────────────────────────────
+torch
+torchvision
+transformers
+timm
+einops
+safetensors
+
+# ── Embeddings & Retrieval
+sentence-transformers
+faiss-cpu
+
+# ── Sparse Index
+whoosh
+
+# ── Image Processing
+opencv-python
+pillow
+imagehash 
+
+# ── NLP / Text
+nltk          # transcript cleaning (stopword removal)
+
+# ── Data & Utilities
+numpy
+pandas
+tqdm
+h5py
+
+# ── Visualisation
+matplotlib
+
+# ── UI 
+streamlit
+
+
+pytest
+
+# ── QAFF Preprocessing (frame relevance scoring)
+openai-clip
