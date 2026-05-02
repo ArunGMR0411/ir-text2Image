@@ -375,7 +375,7 @@ pip install -r requirements.txt
 
 ## References
 
-- Gurrin et al. (2024). *CASTLE 2024 Dataset*. [castle-dataset.github.io](https://castle-dataset.github.io)
+- Rossetto et al. (2025). *The CASTLE 2024 Dataset: Advancing the Art of Multimodal Understanding*. ACM MM 2025. [castle-dataset.github.io](https://castle-dataset.github.io)
 - Zhai et al. (2023). *SigLIP: Scaling Vision-Language Models with Sigmoid Loss*. arXiv:2303.15343
 - Tschannen et al. (2025). *SigLIP 2*. arXiv:2502.14786
 - Chen et al. (2024). *BGE: Retrieval-Enhanced Pre-Training for Dense Text Retrieval*. arXiv:2309.07597
