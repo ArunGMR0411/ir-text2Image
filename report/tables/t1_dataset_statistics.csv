@@ -1,0 +1,16 @@
+metric,value
+Total keyframes,416542
+Recording days,4
+Member streams (egocentric),10
+Fixed room cameras,5
+Total streams,60
+Frame sampling interval,5.0 seconds
+Frames after pHash decimation (captioning corpus),244966
+Frames dropped by pHash,171576
+HOT frame preservation rate,100%
+Fixed camera drop rate,78.4%
+Member camera drop rate,1.2%
+Transcript JSON files,667
+Transcript-aligned frame pairs,145140
+Original dataset size,107.61 GB
+Resized dataset size (768x768 WebP),41.28 GB

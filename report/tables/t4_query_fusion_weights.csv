@@ -1,0 +1,11 @@
+query_id,query_description,query_type,w_vis,w_text,rationale
+Q1,somebody using a portable electric kitchen gadget,Visual/Activity,0.7,0.3,Visual signal dominates; ground truth analysis confirmed egocentric frames are the relevant signal
+Q2,somebody operating the coffee machine,Visual/Activity,0.6,0.4,Visual primary with some text signal; coffee machine is visually distinctive
+Q3,somebody unwrapping a sweet snack and eating it,Visual/Activity,0.6,0.4,Visual primary; action is visually salient but some transcript context aids retrieval
+Q4,somebody complimenting the food,Visual/Activity,0.7,0.3,Visual signal dominates; ground truth analysis confirmed visual frames are the relevant signal
+Q5,people singing,Visual/Activity,0.7,0.3,Visual signal dominates; singing is visually salient across egocentric streams
+Q6,small yellow octopus toy,Visual/Object,0.8,0.2,Pure object query; no discriminative transcript signal expected for a small toy
+Q7,squirrel christmas tree ornament,Visual/Object,0.8,0.2,Fine-grained object query; visual embedding is the only viable signal
+Q8,bird-shaped cookie cutter,Visual/Object,0.8,0.2,Fine-grained object query; baking tool is visually distinctive with no transcript signal
+Q9,ace of spades,Visual/Object,0.6,0.4,Mixed query; visual embedding primary but some text context (card game speech) aids retrieval
+Q10,partially eaten apple,Visual/Object,0.8,0.2,State-aware visual object; transient physical state requires strong visual signal

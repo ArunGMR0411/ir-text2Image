@@ -1,0 +1,16 @@
+metric,value
+Total caption records,244966
+Records with non-empty OCR text,178914
+OCR records stripped (hallucinated),178914
+Strip rate,100.0%
+Records retained (sim >= 0.20),0
+Cosine similarity minimum,-0.081
+Cosine similarity mean,0.043
+Cosine similarity maximum,0.137
+Gate threshold,0.20
+SigLIP2 logit scale,~4.70
+SigLIP2 logit bias,~-15.93
+Breakeven cosine for sigmoid=0.5,~3.39 (impossible for unit vectors)
+Gate elapsed time,~31 min (1880s)
+Captions under 5 words (post-gate artefacts),1639
+True in-body hallucination rate,0.0024% (6 records)

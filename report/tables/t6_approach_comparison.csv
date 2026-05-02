@@ -1,0 +1,11 @@
+property,approach_a,approach_b,approach_c
+Full Name,BM25 Sparse Text Retrieval,SigLIP2 Dense Visual Retrieval,Hybrid Late Fusion with Cross-Encoder Re-ranking
+Type,Sparse Inverted Index,Dense Vector Retrieval,Hybrid Late Fusion
+Visual Signal,Florence-2 Captions,SigLIP2 Embeddings,SigLIP2 Embeddings
+Text Signal,Transcripts + Captions,None,Transcripts + Captions
+Semantic Signal,None,SigLIP2 Cross-modal,BGE-large-en-v1.5
+Re-ranking,None,None,bge-reranker-v2-m3 (top-50 candidates)
+Index,Whoosh BM25,FAISS IndexFlatIP,BM25 + FAISS×3
+Query Latency,Sub-ms,~10ms,~30ms + re-ranking
+Mean P@10,0.070,0.620,0.640
+Role,Sparse Baseline,Dense Visual Baseline,Primary Novel Submission

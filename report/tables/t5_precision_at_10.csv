@@ -1,0 +1,12 @@
+query_id,query_description,approach_a,approach_b,approach_c
+Q1,somebody using a portable electric kitchen gadget,0.1,0.5,0.6
+Q2,somebody operating the coffee machine,0.1,0.9,0.9
+Q3,somebody unwrapping a sweet snack and eating it,0.0,0.4,0.4
+Q4,somebody complimenting the food,0.0,1.0,1.0
+Q5,people singing,0.0,1.0,1.0
+Q6,small yellow octopus toy,0.4,0.9,0.9
+Q7,squirrel christmas tree ornament,0.0,0.3,0.3
+Q8,bird-shaped cookie cutter,0.1,1.0,1.0
+Q9,ace of spades,0.0,0.1,0.2
+Q10,partially eaten apple,0.0,0.1,0.1
+Mean,,0.070,0.620,0.640

@@ -1,0 +1,5 @@
+index_name,type,dimension,vectors,file_size,notes
+Visual Index,FAISS IndexFlatIP,1152,416542,1.79 GiB,SigLIP2 embeddings — exact cosine search
+Transcript Semantic Index,FAISS IndexFlatIP,1024,145140,0.55 GiB,BGE-large-en-v1.5 embeddings
+Caption Semantic Index,FAISS IndexFlatIP,1024,244966,0.93 GiB,BGE-large-en-v1.5 embeddings
+Sparse Keyword Index,Whoosh BM25,—,416542,—,7 fields; ingest time 167s
